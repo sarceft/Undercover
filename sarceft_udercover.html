@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Undercover - Le Maître du Jeu</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #121212; color: #fff; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
+        
+        .screen { background: #1e1e1e; padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); width: 100%; max-width: 500px; text-align: center; display: none; flex-direction: column; }
+        .screen.active { display: flex; }
+        
+        h1 { color: #e74c3c; margin-top: 0; font-size: 2em; }
+        h2 { color: #bbb; font-size: 1.2em; font-weight: normal; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 15px; }
+        
+        input[type="text"], input[type="number"] { background: #2a2a2a; border: 1px solid #444; color: white; padding: 15px; margin: 8px 0; border-radius: 10px; font-size: 16px; width: 100%; outline: none; }
+        input[type="number"] { width: 80px; text-align: center; }
+        
+        button { background: #e74c3c; color: white; border: none; padding: 15px; border-radius: 12px; cursor: pointer; font-size: 18px; font-weight: bold; width: 100%; margin-top: 15px; transition: 0.2s; }
+        button:active { transform: scale(0.98); background: #c0392b; }
+        .btn-ghost { background: transparent; border: 2px solid #444; color: #aaa; margin-top: 10px; }
+        .btn-ghost:active { background: #2a2a2a; }
+        .btn-blue { background: #3498db; }
+        .btn-blue:active { background: #2980b9; }
+        .btn-green { background: #27ae60; }
+        .btn-green:active { background: #219150; }
+        
+        .setup-row { display: flex; gap: 10px; margin-bottom: 20px; }
+        
+        .player-list { text-align: left; max-height: 200px; overflow-y: auto; margin: 20px 0; padding-right: 10px; }
+        .player-list::-webkit-scrollbar { width: 6px; }
+        .player-list::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+        .player-item { display: flex; justify-content: space-between; align-items: center; background: #2a2a2a; margin-bottom: 8px; padding: 12px 15px; border-radius: 8px; }
+        .remove-btn { background: #555; border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+        
+        .params-grid { display: flex; justify-content: space-around; margin-bottom: 20px; }
+        .param-box { background: #2a2a2a; padding: 15px; border-radius: 12px; width: 45%; }
+        .param-label { font-size: 14px; color: #aaa; margin-bottom: 10px; display: block; }
+
+        #transition-screen, #reveal-screen { background: #000; border: none; box-shadow: none; justify-content: center; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+        .pass-icon { font-size: 4em; margin-bottom: 20px; animation: float 2s infinite ease-in-out; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+        .btn-identity { background: #3498db; font-size: 22px; padding: 20px; }
+        .btn-identity:active { background: #2980b9; }
+
+        .role-badge { font-size: 1.2em; color: #aaa; margin-bottom: 20px; letter-spacing: 2px; text-transform: uppercase; }
+        .word-container { height: 120px; display: flex; align-items: center; justify-content: center; margin: 30px 0; }
+        .secret-word { font-size: 3em; font-weight: bold; color: #fff; transition: filter 0.1s; white-space: pre-line; }
+        .secret-word.blurred { filter: blur(25px); }
+        .secret-word.mr-white { font-size: 1.5em; color: #95a5a6; filter: none; }
+        .tap-hint { color: #666; font-size: 14px; margin-bottom: 40px; min-height: 20px; }
+
+        /* Votes */
+        .vote-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; width: 100%; }
+        .vote-btn { background: #2a2a2a; border: 2px solid #444; color: white; padding: 15px 10px; border-radius: 10px; font-size: 16px; cursor: pointer; transition: 0.2s; margin: 0; }
+        .vote-btn.selected { background: #e74c3c; border-color: #e74c3c; }
+        
+        /* Elimination */
+        #elimination-screen { background: #000; border: none; box-shadow: none; justify-content: center; }
+        .eliminated-name { color: #e74c3c; font-size: 2.5em; font-weight: bold; margin: 10px 0; }
+        .eliminated-role { font-size: 1.5em; margin-bottom: 30px; }
+
+        /* Fin */
+        #end-screen { justify-content: center; }
+        .win-title { font-size: 3em; margin-bottom: 20px; }
+        .roles-summary { text-align: left; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 20px 0; width: 100%; font-size: 14px; }
+        .roles-summary div { margin-bottom: 5px; padding: 5px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body>
+
+    <!-- 1. SETUP -->
+    <div id="setup-screen" class="screen active">
+        <h1>🕵️ Undercover</h1>
+        <h2>Configuration de la partie</h2>
+        <div class="setup-row">
+            <input type="text" id="player-name-input" placeholder="Prénom ou nombre (ex: 10)" onkeypress="handleAddEnter(event)">
+            <button onclick="addPlayer()" style="width: auto; padding: 0 20px; font-size: 24px;">+</button>
+        </div>
+        <div id="players-list" class="player-list"></div>
+        <div class="params-grid">
+            <div class="param-box">
+                <span class="param-label">Undercover(s)</span>
+                <input type="number" id="undercover-count" value="1" min="0">
+            </div>
+            <div class="param-box">
+                <span class="param-label">Mister White</span>
+                <input type="number" id="mrwhite-count" value="1" min="0" max="1">
+            </div>
+        </div>
+        <button onclick="startGame()">Lancer la partie</button>
+    </div>
+
+    <!-- 2. TRANSITION -->
+    <div id="transition-screen" class="screen">
+        <div class="pass-icon">📱</div>
+        <h2 style="border:none; color:white; font-size:1.5em;" id="transition-subtitle">Passe le téléphone à :</h2>
+        <div id="next-player-name" style="font-size: 2.5em; font-weight: bold; color: #e74c3c; margin: 20px 0;"></div>
+        <button class="btn-identity" onclick="showReveal()">Je suis <span id="btn-confirm-name"></span></button>
+    </div>
+
+    <!-- 3. REVEAL -->
+    <div id="reveal-screen" class="screen">
+        <div class="role-badge" id="role-title"></div>
+        <div class="word-container" 
+             onmousedown="revealWord()" onmouseup="hideWord()" onmouseleave="hideWord()"
+             ontouchstart="revealWord()" ontouchend="hideWord()">
+            <div id="secret-word" class="secret-word blurred">MOT</div>
+        </div>
+        <div class="tap-hint" id="tap-hint-text">👉 Maintiens le doigt appuyé pour voir</div>
+        <button class="btn-ghost" onclick="nextTurn()" style="margin-top: auto;">J'ai mémorisé ✓</button>
+    </div>
+
+    <!-- 4. DISCUSSION -->
+    <div id="discussion-screen" class="screen">
+        <div style="font-size: 4em; margin: 20px 0;">🗣️</div>
+        <h1 style="color: #3498db;">Débattez !</h1>
+        <p style="color: #bbb; margin-bottom: 30px;">Mettez-vous d'accord sur qui éliminer. Vous pouvez éliminer 1 ou 2 personnes.</p>
+        <button class="btn-blue" onclick="showVoteScreen()">Passer au vote 🗳️</button>
+    </div>
+
+    <!-- 5. VOTE -->
+    <div id="vote-screen" class="screen">
+        <h1 style="font-size: 1.5em; color: #e67e22;">Qui éliminer ?</h1>
+        <p style="color: #aaa; font-size: 14px; margin-bottom: 10px;">Sélectionnez les joueurs (1 ou 2 max)</p>
+        <div id="vote-grid" class="vote-grid"></div>
+        <button onclick="processElimination()" id="eliminate-btn">Valider l'élimination ⚡</button>
+    </div>
+
+    <!-- 6. ELIMINATION -->
+    <div id="elimination-screen" class="screen">
+        <div style="font-size: 3em;">💀</div>
+        <div class="eliminated-name" id="eliminated-name"></div>
+        <div class="eliminated-role" id="eliminated-role"></div>
+        <button onclick="afterElimination()">Continuer</button>
+    </div>
+
+    <!-- 7. FIN DE PARTIE -->
+    <div id="end-screen" class="screen">
+        <div class="win-title" id="win-title"></div>
+        <p style="margin: 20px 0; color: #ccc;">Résumé des rôles :</p>
+        <div class="roles-summary" id="roles-summary"></div>
+        <button onclick="resetGame()">Nouvelle partie</button>
+    </div>
+
+    <script>
+        const wordPairs = [
+            ["Chien", "Loup"], ["Chat", "Tigre"], ["Plage", "Piscine"], ["Voiture", "Moto"],
+            ["Avion", "Hélicoptère"], ["Pizza", "Hamburger"], ["Soleil", "Lune"], ["Docteur", "Infirmier"],
+            ["École", "Université"], ["Livres", "Films"], ["Foot", "Rugby"], ["Café", "Thé"],
+            ["Hiver", "Automne"], ["Bière", "Vin"], ["Guitare", "Piano"], ["Couture", "Tricot"],
+            ["Facebook", "Instagram"], ["Mariage", "Fiançailles"], ["Dentiste", "Orthodontiste"],
+            ["Sushi", "Ramen"], ["Croissant", "Baguette"], ["Papier", "Carton"], ["Lampe", "Bougie"],
+            ["Colle", "Scotch"], ["Ciseaux", "Couteau"], ["Banane", "Pomme"], ["Vache", "Cochon"],
+            ["Policier", "Gendarme"], ["Pompier", "Samu"], ["Écureuil", "Lapin"], ["Ocean", "Mer"],
+            ["Montagne", "Colline"], ["Forêt", "Jungle"], ["Robe", "Jupe"], ["Lunettes", "Masque"],
+            ["Parapluie", "Imperméable"], ["Tarte", "Gâteau"], ["Courir", "Marcher"],
+            ["Dormir", "Se reposer"], ["Clavier", "Souris"], ["Frigo", "Congélateur"], ["Peinture", "Dessin"],
+            ["Couronne", "Chapeau"], ["Pistolet", "Épée"], ["Sorcier", "Magicien"], ["Vampire", "Zombie"],
+            ["Marteau", "Tournevis"], ["Vis", "Clou"], ["Savon", "Gel douche"], ["Moustique", "Mouche"],
+            ["Serpent", "Lézard"], ["Aigle", "Vautour"], ["Baleine", "Requin"], ["Tango", "Salsa"],
+            ["Rock", "Rap"], ["Paris", "Lyon"], ["Espagne", "Italie"], ["Piscine", "Jacuzzi"],
+            ["Tennis", "Badminton"], ["Ski", "Snowboard"], ["Halloween", "Noël"], ["Anniversaire", "Nouvel An"],
+            ["Journal", "Roman"], ["Chaise", "Canapé"], ["Table", "Bureau"], ["Porte", "Fenêtre"],
+            ["Toit", "Mur"], ["Aspirateur", "Balai"], ["Taxi", "VTC"], ["Coutelier", "Boulanger"],
+            ["Pharmacie", "Hôpital"], ["Bicyclette", "Trottinette"], ["Tracteur", "Camion"], ["Chaussure", "Botte"]
+        ];
+
+        let players = [];
+        let gameState = [];
+        let currentIndex = 0;
+        let isPeekPhase = false; // True quand on regarde le mot au début d'un nouveau tour
+        let selectedForElimination = [];
+
+        function handleAddEnter(e) { if (e.key === 'Enter') addPlayer(); }
+
+        function addPlayer() {
+            const input = document.getElementById('player-name-input');
+            const val = input.value.trim();
+            if (val === '') return;
+            const num = parseInt(val);
+            if (!isNaN(num) && num > 1) {
+                for(let i = 1; i <= num; i++) players.push("Joueur " + (players.length + 1));
+            } else {
+                if (players.includes(val)) { alert("Ce nom est déjà pris !"); return; }
+                players.push(val);
+            }
+            input.value = ''; input.focus(); renderPlayers();
+        }
+
+        function removePlayer(index) { players.splice(index, 1); renderPlayers(); }
+
+        function renderPlayers() {
+            document.getElementById('players-list').innerHTML = players.map((p, i) => `
+                <div class="player-item"><span>${p}</span><button class="remove-btn" onclick="removePlayer(${i})">×</button></div>
+            `).join('');
+        }
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function startGame() {
+            const numU = parseInt(document.getElementById('undercover-count').value) || 0;
+            const numW = parseInt(document.getElementById('mrwhite-count').value) || 0;
+            if (players.length < 4) return alert("Il faut au moins 4 joueurs.");
+            if (numU + numW >= players.length) return alert("Il doit y avoir au moins 1 Civil.");
+            if (numU >= players.length - numW) return alert("Trop d'Undercovers !");
+
+            const pair = wordPairs[Math.floor(Math.random() * wordPairs.length)];
+            let roles = [];
+            for(let i=0; i<numU; i++) roles.push({role: 'undercover', word: pair[1]});
+            for(let i=0; i<numW; i++) roles.push({role: 'mrwhite', word: null});
+            while(roles.length < players.length) roles.push({role: 'civil', word: pair[0]});
+
+            // Mélange
+            for (let i = roles.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [roles[i], roles[j]] = [roles[j], roles[i]];
+            }
+
+            gameState = players.map((name, i) => ({
+                name, role: roles[i].role, word: roles[i].word,
+                isAlive: true, hasSeenWordThisRound: false
+            }));
+
+            isPeekPhase = false;
+            currentIndex = 0;
+            showTransition();
+        }
+
+        function getNextAliveIndex(startIdx) {
+            let idx = startIdx + 1;
+            while(idx < gameState.length) {
+                if (gameState[idx].isAlive) return idx;
+                idx++;
+            }
+            return -1;
+        }
+
+        function showTransition() {
+            const player = gameState[currentIndex];
+            document.getElementById('transition-subtitle').innerText = isPeekPhase ? "Rappel de mot pour :" : "Passe le téléphone à :";
+            document.getElementById('next-player-name').innerText = player.name;
+            document.getElementById('btn-confirm-name').innerText = player.name;
+            showScreen('transition-screen');
+        }
+
+        function showReveal() {
+            const player = gameState[currentIndex];
+            const roleTitle = document.getElementById('role-title');
+            const wordEl = document.getElementById('secret-word');
+            const hintEl = document.getElementById('tap-hint-text');
+
+            if (player.role === 'civil') {
+                roleTitle.innerText = "CIVIL"; roleTitle.style.color = "#3498db";
+                wordEl.innerText = player.word; wordEl.className = "secret-word blurred";
+            } else if (player.role === 'undercover') {
+                roleTitle.innerText = "UNDERCOVER"; roleTitle.style.color = "#e74c3c";
+                wordEl.innerText = player.word; wordEl.className = "secret-word blurred";
+            } else {
+                roleTitle.innerText = "MR. WHITE"; roleTitle.style.color = "#95a5a6";
+                wordEl.innerText = "Vous n'avez pas de mot.\nBluffez !"; wordEl.className = "secret-word mr-white";
+            }
+
+            // Gestion du texte d'indice
+            if(player.role === 'mrwhite') {
+                hintEl.innerText = "🤷 Pas de mot à retenir pour toi";
+            } else if (player.hasSeenWordThisRound) {
+                hintEl.innerText = "🔒 Mot déjà vu ce tour !";
+                wordEl.classList.add('blurred'); // Force le flou
+            } else {
+                hintEl.innerText = "👉 Maintiens le doigt appuyé pour voir";
+            }
+
+            showScreen('reveal-screen');
+        }
+
+        function revealWord() {
+            const player = gameState[currentIndex];
+            if (player.hasSeenWordThisRound && player.role !== 'mrwhite') return; // Anti-triche
+            document.getElementById('secret-word').classList.remove('blurred');
+        }
+
+        function hideWord() {
+            const player = gameState[currentIndex];
+            const wordEl = document.getElementById('secret-word');
+            if (!wordEl.classList.contains('mr-white')) {
+                wordEl.classList.add('blurred');
+            }
+            // Marquer comme vu pour le tour UNIQUEMENT si ce n'était pas déjà fait
+            if (!player.hasSeenWordThisRound && player.role !== 'mrwhite') {
+                player.hasSeenWordThisRound = true;
+                document.getElementById('tap-hint-text').innerText = "🔒 Mot verrouillé pour ce tour";
+            }
+        }
+
+        function nextTurn() {
+            const nextIdx = getNextAliveIndex(currentIndex);
+            if (nextIdx !== -1) {
+                currentIndex = nextIdx;
+                showTransition();
+            } else {
+                // Fin du tour de distribution/rappel
+                if (isPeekPhase) {
+                    isPeekPhase = false;
+                    showScreen('discussion-screen');
+                } else {
+                    // C'était la première distribution, on lance la discussion
+                    showScreen('discussion-screen');
+                }
+            }
+        }
+
+        function showVoteScreen() {
+            selectedForElimination = [];
+            const grid = document.getElementById('vote-grid');
+            const alivePlayers = gameState.filter(p => p.isAlive);
+            
+            grid.innerHTML = alivePlayers.map(p => `
+                <button class="vote-btn" onclick="toggleVote(this, '${p.name}')">${p.name}</button>
+            `).join('');
+            
+            showScreen('vote-screen');
+            updateEliminateBtn();
+        }
+
+        function toggleVote(btn, name) {
+            if (btn.classList.contains('selected')) {
+                btn.classList.remove('selected');
+                selectedForElimination = selectedForElimination.filter(n => n !== name);
+            } else {
+                if (selectedForElimination.length >= 2) return; // Max 2 éliminations
+                btn.classList.add('selected');
+                selectedForElimination.push(name);
+            }
+            updateEliminateBtn();
+        }
+
+        function updateEliminateBtn() {
+            const btn = document.getElementById('eliminate-btn');
+            btn.disabled = selectedForElimination.length === 0;
+            btn.style.opacity = selectedForElimination.length === 0 ? '0.5' : '1';
+        }
+
+        function processElimination() {
+            if (selectedForElimination.length === 0) return;
+
+            // On élimine le dernier sélectionné pour l'afficher (le jeu officiel élimine 1 par 1 si vote à égalité, mais ici on simplifie)
+            const elimName = selectedForElimination[0]; 
+            const player = gameState.find(p => p.name === elimName && p.isAlive);
+            
+            if(player) {
+                player.isAlive = false;
+                document.getElementById('eliminated-name').innerText = player.name;
+                
+                let roleText = "";
+                if(player.role === 'civil') roleText = " étais un Civile 🏛️";
+                else if(player.role === 'undercover') roleText = " étais un Undercover 🕵️";
+                else roleText = " étais Mister White 👤";
+                
+                document.getElementById('eliminated-role').innerText = roleText;
+                document.getElementById('eliminated-role').style.color = player.role === 'undercover' ? '#e74c3c' : '#bbb';
+                showScreen('elimination-screen');
+            }
+        }
+
+        function afterElimination() {
+            // S'il y avait 2 éliminations, on refait un passage
+            if (selectedForElimination.length > 1) {
+                selectedForElimination.shift(); // Retire le premier qu'on vient de traiter
+                processElimination();
+                return;
+            }
+
+            // Vérifier les conditions de victoire
+            const result = checkWinCondition();
+            if (result) {
+                showEndScreen(result);
+            } else {
+                // Nouveau tour : phase de rappel de mot
+                startPeekPhase();
+            }
+        }
+
+        function checkWinCondition() {
+            const aliveU = gameState.filter(p => p.isAlive && p.role === 'undercover').length;
+            const aliveC = gameState.filter(p => p.isAlive && p.role === 'civil').length;
+            const aliveW = gameState.filter(p => p.isAlive && p.role === 'mrwhite').length;
+
+            if (aliveU === 0 && aliveW === 0) return 'civiles'; // Plus aucun méchant
+            if (aliveU >= aliveC) return 'undercovers'; // Les sous-marins prennent le dessus
+            return null; // La partie continue
+        }
+
+        function startPeekPhase() {
+            isPeekPhase = true;
+            // Réinitialiser le droit de voir le mot pour ce nouveau tour
+            gameState.forEach(p => { if(p.isAlive) p.hasSeenWordThisRound = false; });
+            
+            // Trouver le premier joueur en vie
+            const firstAliveIdx = gameState.findIndex(p => p.isAlive);
+            if (firstAliveIdx !== -1) {
+                currentIndex = firstAliveIdx;
+                showTransition();
+            }
+        }
+
+        function showEndScreen(winner) {
+            const titleEl = document.getElementById('win-title');
+            const summaryEl = document.getElementById('roles-summary');
+
+            if (winner === 'civiles') {
+                titleEl.innerText = "🏛️ Les Civils gagnent !";
+                titleEl.style.color = "#3498db";
+                document.getElementById('end-screen').style.background = "#1a3a5c";
+            } else {
+                titleEl.innerText = "🕵️ Les Undercovers gagnent !";
+                titleEl.style.color = "#e74c3c";
+                document.getElementById('end-screen').style.background = "#5c1a1a";
+            }
+
+            summaryEl.innerHTML = gameState.map(p => {
+                let roleStr = p.role === 'civil' ? 'Civile' : (p.role === 'undercover' ? 'Undercover' : 'Mr. White');
+                let status = p.isAlive ? '✅ Vivant' : '💀 Mort';
+                let wordStr = p.word ? `(${p.word})` : '(Sans mot)';
+                return `<div>${p.name} : <strong>${roleStr}</strong> ${wordStr} - ${status}</div>`;
+            }).join('');
+
+            showScreen('end-screen');
+        }
+
+        function resetGame() {
+            players = []; gameState = []; currentIndex = 0; isPeekPhase = false;
+            renderPlayers();
+            document.getElementById('undercover-count').value = 1;
+            document.getElementById('mrwhite-count').value = 1;
+            document.getElementById('end-screen').style.background = "#1e1e1e"; // Reset bg color
+            showScreen('setup-screen');
+        }
+    </script>
+</body>
+</html>
